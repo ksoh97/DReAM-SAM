@@ -1,0 +1,45 @@
+setup:
+  gpu_id: '-1'
+  seed: 2024
+
+  file_name: your_run_file_name
+  model_type: DReAM-SAM   # DReAM-SAM, vit_b
+  model_name: LoRA   # SAM, LoRA
+  weight_type: sam_vit_b_01ec64.pth
+
+  data_type: your_dataset
+  cls: <num_classes>    # Change depending on the 'data_type'
+  num_regions: <num_classes+1>
+  
+network:
+  Prompt: # True, False
+    Point: True
+    Box: False
+    Mask: True
+    grid: False
+    nnUNetMask: False
+  Update: # True(=Trainable), False(=Freeze)
+    image_encoder: False
+    prompt_encoder: False
+    mask_decoder: True
+
+optimizer:
+  max_epoch: 50
+  batch_size: 4
+  learning_rate: 1e-5
+  weight_decay: 1e-3
+  optim_set: "AdamW"
+  warmup: False
+  warmup_steps: 3
+
+  AdamW:
+    target: torch.optim.AdamW
+    max_iter: -1
+    warmup_iter: -1
+    lr_scheduler: "lambda"
+
+storage:
+  log_dir: /path/to/save/weights
+  preweights_dir: /path/to/the/pretrained/weights
+  data_dir: /path/to/the/datasets
+  dataset_split_txt_dir: /path/to/the/split/text/file
