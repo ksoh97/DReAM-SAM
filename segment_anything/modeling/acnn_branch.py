@@ -3,7 +3,6 @@ import torch.nn as nn
 from torchvision import models
 from torchvision.ops import deform_conv2d
 
-
 class ModulatedDeformConv(nn.Module):
     def __init__(self, in_channels, out_channels, k=3, stride=1, padding=None, bias=True):
         super().__init__()
