@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from .common import LayerNorm2d
 
-
 class denseP_Generator(nn.Module):
     def __init__(self, in_channels, mask_in_chans=16, embed_dim = 256):
         super(denseP_Generator, self).__init__()
