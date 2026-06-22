@@ -9,7 +9,6 @@ from torch import Tensor, nn
 
 import math
 from typing import Tuple, Type
-
 from .common import MLPBlock
 
 
