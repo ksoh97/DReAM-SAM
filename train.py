@@ -12,7 +12,6 @@ from utils.utils import seed_everything, get_class_vector, soft_dice
 from utils.dataloader import Processor, collate_fn, DatasetSAM
 from utils.losses import DiceCELoss, RegionDecouplingLoss
 
-
 with open('./config.yaml') as f:
     configs = yaml.load(f, Loader=yaml.FullLoader)
 
