@@ -13,7 +13,6 @@ from typing import Optional, Tuple
 
 from utils.transforms import ResizeLongestSide
 
-
 class SamPredictor:
     def __init__(
         self,
