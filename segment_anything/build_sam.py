@@ -10,7 +10,6 @@ from functools import partial
 from .modeling import ImageEncoderViT, MaskDecoder, PromptEncoder, Sam, TwoWayTransformer
 from .modeling import ACNN_Branch, DNA_Module, TAPG, DReAM_SAM
 
-
 def build_sam_vit_h(checkpoint=None):
     return _build_sam(
         encoder_embed_dim=1280,
