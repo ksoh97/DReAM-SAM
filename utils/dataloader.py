@@ -9,7 +9,6 @@ from PIL import Image
 
 from utils.transforms import ResizeLongestSide, ResizeSqure
 
-
 class Processor:
     def __init__(self, model_input_size):
         super().__init__
