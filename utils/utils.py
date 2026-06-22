@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
-
 def seed_everything(seed=None):
     max_seed_value = np.iinfo(np.uint32).max
     min_seed_value = np.iinfo(np.uint32).min
