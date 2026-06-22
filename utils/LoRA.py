@@ -6,7 +6,6 @@ from torch.nn.parameter import Parameter
 from segment_anything.modeling import Sam
 from segment_anything import sam_model_registry
 
-
 class _LoRA_qkv(nn.Module):
     def __init__(
             self,
