@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Optional, Tuple, Type
-
 from .common import LayerNorm2d, MLPBlock
 
 
