@@ -102,7 +102,6 @@ class ResizeLongestSide:
         return (newh, neww)
 
 
-
 class ResizeSqure:
     def __init__(self, target_length: int) -> None:
         self.target_length = target_length
