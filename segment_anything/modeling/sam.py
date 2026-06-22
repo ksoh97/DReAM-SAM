@@ -130,6 +130,7 @@ class Sam(nn.Module):
             )
         return outputs
 
+    
     def postprocess_masks(
         self,
         masks: torch.Tensor,
