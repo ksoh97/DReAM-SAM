@@ -47,6 +47,7 @@ class DReAM_SAM(nn.Module):
     def device(self) -> Any:
         return self.pixel_mean.device
 
+    
     def forward(
         self,
         batched_input: List[Dict[str, Any]],
