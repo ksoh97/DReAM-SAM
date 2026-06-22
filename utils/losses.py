@@ -5,7 +5,6 @@ from typing import Optional, List, Union
 
 from utils.utils import soft_dice
 
-
 class DiceCELoss(nn.Module):
     def __init__(self, dice_weight=1.0, ce_weight=1.0):
         super(DiceCELoss, self).__init__()
