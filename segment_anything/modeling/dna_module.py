@@ -4,7 +4,6 @@ import torch.nn.functional as F
 import math
 from .common import MLPBlock
 
-
 class DNA_Module(nn.Module):
     def __init__(self, embed_dim, sam_orig_dim, cnn_orig_dim, num_heads,
                  NA_method='fix', NA_kernel_size=3, max_dilation=3):
