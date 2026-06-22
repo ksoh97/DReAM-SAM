@@ -3,7 +3,7 @@ setup:
   seed: 2024
 
   file_name: your_run_file_name
-  model_type: DReAM-SAM   # DReAM-SAM, vit_b
+  model_type: DReAM-SAM   # DReAM-SAM, vit_b (default)
   model_name: LoRA   # SAM, LoRA
   weight_type: sam_vit_b_01ec64.pth
 
