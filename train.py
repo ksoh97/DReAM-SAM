@@ -10,7 +10,7 @@ from segment_anything import sam_model_registry
 from utils.LoRA import LoRA_Sam
 from utils.utils import seed_everything, get_class_vector, soft_dice
 from utils.dataloader import Processor, collate_fn, DatasetSAM
-from utils.losses import DiceCELoss, RegionDecouplingLoss
+from utils.losses import DiceCELoss, RegionDecouplingLoss, KernelDecorrelationLoss
 
 with open('./config.yaml') as f:
     configs = yaml.load(f, Loader=yaml.FullLoader)
@@ -19,6 +19,7 @@ setup_conf = configs.pop("setup")
 storage_conf = configs.pop("storage")
 optim_conf = configs.pop("optimizer")
 net_conf = configs.pop("network")
+loss_conf = configs.pop("loss", {})
 
 mode = setup_conf['mode']
 seed_everything(seed=setup_conf["seed"])
@@ -35,7 +36,7 @@ else:
     sam = sam_model_registry[setup_conf['model_type']](checkpoint=sam_checkpoint)
     
 for module_name in ['image_encoder', 'prompt_encoder', 'mask_decoder']:
-    update_flag = net_conf["Update"].get(module_name, False)    
+    update_flag = net_conf["Update"].get(module_name, False)
     module = getattr(sam, module_name)
     for param in module.parameters():
         param.requires_grad = update_flag
@@ -76,9 +77,19 @@ else: raise ValueError("Invalid optimizer setting!!")
 
 
 """ Loss function definition """
+lambda_rd = float(loss_conf.get("lambda_rd", 0.5))
+kd_weight = float(loss_conf.get("kd_weight", 1.0))
+
 criterion = DiceCELoss()
-decouple_loss = RegionDecouplingLoss(num_regions=setup_conf['num_regions'], 
-                                     gamma=10.0, eps=1e-3, r_d=2, blur_sigma=1.5, from_logits=False)
+decouple_loss = RegionDecouplingLoss(num_regions=setup_conf['num_regions'],
+                                     gamma=float(loss_conf.get("gamma", 10.0)),
+                                     eps=float(loss_conf.get("eps", 1e-3)),
+                                     r_d=int(loss_conf.get("r_d", 2)),
+                                     blur_sigma=float(loss_conf.get("blur_sigma", 1.5)),
+                                     from_logits=False)
+kernel_decorr_loss = KernelDecorrelationLoss(tau_c=float(loss_conf.get("tau_c", 0.2)),
+                                             detach_affinity=bool(loss_conf.get("detach_affinity", True)),
+                                             cosine_affinity=bool(loss_conf.get("cosine_affinity", False)))
 classification_loss = nn.BCELoss()
 """ Loss function definition """
 
@@ -137,9 +148,12 @@ for cur_epoch in tqdm(range(optim_conf["max_epoch"])):
             stk_cls_lbl = torch.stack([get_class_vector(b["gt_mask"], setup_conf['cls']) for b in batch]).to(device)
             cls_loss = classification_loss(pred_cls, stk_cls_lbl)
             loss += cls_loss
+            # Kernel Decorrelation loss
+            kd_loss = kernel_decorr_loss(decoupled_res)
+            loss += kd_weight * kd_loss
             # Region Decoupling loss
             decoup_loss = decouple_loss(decoupled_res, stk_gt)
-            loss += decoup_loss
+            loss += lambda_rd * decoup_loss
         
         """ Back-propagation """
         loss.backward()

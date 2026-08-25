@@ -10,6 +10,7 @@ The Segment Anything Model (SAM) has demonstrated unprecedented zero-shot segmen
 DReAM-SAM
 ├── segment_anything/ # SAM backbone and the proposed modules
 ├── utils/ # Helper functions for data preprocessing/postprocessing and objective functions
+├── tests/dummy_run.py # Dummy-tensor smoke test (DyRA-Block kernels, L_kd, full forward/backward)
 ├── train.py # Training script
 ├── inference.py # Inference & evaluation script
 ├── config.yaml # Configuration file (directory, hyperparameters, and optimization settings)

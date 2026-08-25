@@ -71,25 +71,75 @@ class OffsetGenerator(nn.Module):
         return self.net(F_stream)
 
 
-class AdaptiveKernelGenerator(nn.Module):
-    def __init__(self, channels, k=3, Kdescriptor=7, act="tanh"):
+class TargetConditionedKernelGenerator(nn.Module):
+    """Target-conditioned kernel generator (Sec. III-A.2 of the paper).
+
+    A single generator is instantiated per DyRA-Block and re-used for all N
+    targets, so that ``Conv^shared_1x1`` is genuinely weight-shared across
+    targets at stage l:
+
+        d^l_n     = GAP(ReLU(Conv3x3(AvgPool_K(F_bar^l_n))))          in R^C
+        K_spec    = Reshape(Conv^spec_1x1([d^l_n ; phi(c_n)]))        in R^{C x Kb x Kb}
+        K_shared  = Reshape(Conv^shared_1x1(d^l_n))                   in R^{C x Kb x Kb}
+        zeta^l_n  = Sigmoid(phi_zeta(d^l_n))                          in R
+        K^l_n     = Tanh(K_shared + zeta^l_n * K_spec)
+
+    ``{c_n}`` are learnable, location-agnostic target prototypes. The
+    un-composed ``K_spec`` is returned as well because the kernel
+    decorrelation loss (Eq. 11) is defined on the target-specific residual.
+    """
+
+    def __init__(self, channels, num_targets, k=3, Kdescriptor=7, proto_dim=None, act="tanh"):
         super().__init__()
         self.k = k
+        self.channels = channels
+        self.num_targets = num_targets
+        self.proto_dim = proto_dim or channels
+
+        # (i) local-context summarization -> channel-wise descriptor d^l_n
         self.desc = nn.Sequential(
             nn.AdaptiveAvgPool2d(Kdescriptor),
             nn.Conv2d(channels, channels, 3, padding=1, groups=channels, bias=False),
             nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d(1),
         )
-        self.head = nn.Conv2d(channels, channels * k * k, kernel_size=1, bias=True)
+
+        # (ii) learnable target prototypes {c_n} and their projection phi(.)
+        # Orthonormal init: targets start maximally distinguishable (c_n^T c_m = 0,
+        # i.e. omega_nm = 0.5 in Eq. (11)) and at a magnitude comparable to d^l_n,
+        # so the target identity actually modulates the kernel from step 0.
+        self.prototypes = nn.Parameter(torch.empty(num_targets, self.proto_dim))
+        if num_targets <= self.proto_dim:
+            nn.init.orthogonal_(self.prototypes)
+        else:
+            nn.init.trunc_normal_(self.prototypes, std=0.02)
+        self.proto_proj = nn.Conv2d(self.proto_dim, channels, kernel_size=1, bias=True)
+
+        # (iii) shared-specific kernel decomposition heads
+        self.head_spec = nn.Conv2d(2 * channels, channels * k * k, kernel_size=1, bias=True)
+        self.head_shared = nn.Conv2d(channels, channels * k * k, kernel_size=1, bias=True)
+
+        # (iv) scalar gate zeta^l_n modulating the target-specific contribution
+        self.gate_proj = nn.Conv2d(channels, 1, kernel_size=1, bias=True)
+
         self.act = nn.Tanh() if act == "tanh" else nn.Sigmoid()
 
-    def forward(self, F_stream):
+    def forward(self, F_stream, target_idx):
         B, C, _, _ = F_stream.shape
-        d = self.desc(F_stream)
-        w = self.head(d).view(B, C, self.k, self.k)
-        w = self.act(w)
-        return w
+
+        # channel-wise descriptor of the target-attended feature
+        d = self.desc(F_stream)                                       # (B, C, 1, 1)
+
+        # target identity injection: [d ; phi(c_n)]
+        c = self.prototypes[target_idx].view(1, self.proto_dim, 1, 1)
+        c = self.proto_proj(c).expand(B, -1, -1, -1)                  # (B, C, 1, 1)
+
+        K_spec = self.head_spec(torch.cat([d, c], dim=1)).view(B, C, self.k, self.k)
+        K_shared = self.head_shared(d).view(B, C, self.k, self.k)
+        zeta = torch.sigmoid(self.gate_proj(d)).view(B, 1, 1, 1)
+
+        K = self.act(K_shared + zeta * K_spec)
+        return K, K_spec, zeta.view(B)
 
 
 class DyRABlock(nn.Module):
@@ -101,8 +151,14 @@ class DyRABlock(nn.Module):
         self.decouple = TargetRegionDecoupler(in_channels, num_regions)
 
         self.offs = nn.ModuleList([OffsetGenerator(in_channels, k=k) for _ in range(num_regions)])
-        self.akgs = nn.ModuleList([AdaptiveKernelGenerator(in_channels, k=k, Kdescriptor=Kdescriptor) for _ in range(num_regions)])
-        self.dconvs = nn.ModuleList([ModulatedDeformConv(in_channels, out_channels, k=k) for _ in range(num_regions)])
+        # One generator for all targets: Conv^shared_1x1 is weight-shared across
+        # targets, while the target identity enters through the prototypes {c_n}.
+        self.akg = TargetConditionedKernelGenerator(
+            in_channels, num_targets=num_regions, k=k, Kdescriptor=Kdescriptor
+        )
+        # The dynamic kernels are applied depth-wise, so a single deformable-conv
+        # wrapper is shared by every target region.
+        self.dconv = ModulatedDeformConv(in_channels, out_channels, k=k)
 
         self.pwconv = nn.Conv2d(in_channels=out_channels*self.num_regions, out_channels=out_channels, kernel_size=1)
         self.norm = nn.BatchNorm2d(out_channels) if use_bn else nn.Identity()
@@ -113,23 +169,31 @@ class DyRABlock(nn.Module):
 
         outs = []
         dec_dict = {}
+        K_specs, zetas = [], []
         for i in range(self.num_regions):
-            # 2) offsets + AKG mask
+            # 2) offsets + target-conditioned kernel (shared + gated specific)
             F_i = F_regions[i]
             p_i = self.offs[i](F_i)
-            K_i = self.akgs[i](F_i)
-            
+            K_i, K_spec_i, zeta_i = self.akg(F_i, target_idx=i)
+
             # 3) deformable conv
-            O_i = self.dconvs[i](F_i, p_i, mask=None, dyn_weight=K_i)
-            
+            O_i = self.dconv(F_i, p_i, mask=None, dyn_weight=K_i)
+
             outs.append(O_i)
+            K_specs.append(K_spec_i)
+            zetas.append(zeta_i)
             dec_dict[f"M_{i}"] = M_regions[i]
             dec_dict[f"O_{i}"] = O_i
 
-        # 4) region-wise aggregation; 
+        # target-specific residuals / gates / prototypes for the KD loss (Eq. 11)
+        dec_dict["K_spec"] = torch.stack(K_specs, dim=1)      # (B, N, C, k, k)
+        dec_dict["zeta"] = torch.stack(zetas, dim=1)          # (B, N)
+        dec_dict["prototypes"] = self.akg.prototypes         # (N, C)
+
+        # 4) region-wise aggregation;
         O = torch.cat(outs, dim=1)
         O = self.norm(self.pwconv(O))
-        
+
         return O, dec_dict
     
     

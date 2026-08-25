@@ -80,6 +80,86 @@ def make_boundary_weight(Y: torch.Tensor, gamma: float, eps: float):
     return torch.exp(-(sdt**2) / (2 * (gamma**2))) + eps
 
 
+class KernelDecorrelationLoss(nn.Module):
+    """Kernel decorrelation (KD) loss of Eq. (11).
+
+        L_kd = 1/L sum_l 1/(N(N-1)) sum_{n != m} w_nm * |<K~_n,spec , K~_m,spec>|
+
+    with ``K~_n,spec`` the l2-normalized target-specific residual produced by the
+    DyRA-Block and ``w_nm = 1 - Sigmoid(c_n^T c_m / tau_c)`` an affinity-based
+    softening term computed from the learnable target prototypes.
+
+    Args:
+        tau_c: affinity temperature ``tau_c`` (0.2 in the paper).
+        target_indices: subset of region indices to penalize. ``None`` uses all
+            regions produced by the DyRA-Block (index 0 is the background
+            region under the ``num_regions = cls + 1`` convention).
+        detach_affinity: if True, ``w_nm`` is treated as a constant weight. This
+            blocks the degenerate shortcut where the prototypes are pushed
+            towards each other to shrink ``w_nm`` instead of decorrelating the
+            kernels themselves.
+        cosine_affinity: if True, the prototype affinity uses cosine similarity
+            instead of the raw inner product of Eq. (11). Useful when prototype
+            norms drift during long schedules.
+    """
+
+    def __init__(self,
+                 tau_c: float = 0.2,
+                 target_indices: Optional[List[int]] = None,
+                 detach_affinity: bool = True,
+                 cosine_affinity: bool = False,
+                 kernel_key: str = "K_spec",
+                 proto_key: str = "prototypes"):
+        super().__init__()
+        self.tau_c = tau_c
+        self.target_indices = target_indices
+        self.detach_affinity = detach_affinity
+        self.cosine_affinity = cosine_affinity
+        self.kernel_key = kernel_key
+        self.proto_key = proto_key
+
+    def forward(self, preds: List[dict]) -> torch.Tensor:
+        stage_losses = []
+        ref = None
+
+        for p in preds:
+            if self.kernel_key not in p or self.proto_key not in p:
+                continue
+
+            K = p[self.kernel_key]                                    # (B, N, C, k, k)
+            C_proto = p[self.proto_key]                               # (N, C_p)
+            ref = K
+
+            if self.target_indices is not None:
+                idx = torch.as_tensor(self.target_indices, device=K.device, dtype=torch.long)
+                K = K.index_select(1, idx)
+                C_proto = C_proto.index_select(0, idx)
+
+            N = K.shape[1]
+            if N < 2:
+                continue
+
+            # |<K~_n , K~_m>| averaged over the batch
+            K_norm = F.normalize(K.flatten(2), dim=-1)                # (B, N, C*k*k)
+            gram = torch.matmul(K_norm, K_norm.transpose(1, 2)).abs() # (B, N, N)
+            gram = gram.mean(dim=0)                                   # (N, N)
+
+            # prototype affinity -> softening weights w_nm
+            proto = F.normalize(C_proto, dim=-1) if self.cosine_affinity else C_proto
+            affinity = torch.matmul(proto, proto.transpose(0, 1)) / self.tau_c
+            omega = 1.0 - torch.sigmoid(affinity)
+            if self.detach_affinity:
+                omega = omega.detach()
+
+            off_diag = ~torch.eye(N, dtype=torch.bool, device=K.device)
+            stage_losses.append((omega * gram)[off_diag].sum() / (N * (N - 1)))
+
+        if not stage_losses:
+            device = ref.device if ref is not None else None
+            return torch.zeros((), device=device)
+        return torch.stack(stage_losses).mean()
+
+
 class RegionDecouplingLoss(nn.Module):
     def __init__(self,
                  num_regions: int = 2,

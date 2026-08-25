@@ -23,6 +23,17 @@ network:
     prompt_encoder: False
     mask_decoder: True
 
+loss:   # L_total = L_seg + L_cls + kd_weight * L_kd + lambda_rd * L_rd
+  lambda_rd: 0.5      # lambda for the region decoupling loss
+  kd_weight: 1.0      # weight for the kernel decorrelation loss
+  tau_c: 0.2          # affinity temperature of the KD loss
+  detach_affinity: True    # freeze w_nm so prototypes cannot shortcut the penalty
+  cosine_affinity: False   # True: cosine prototype affinity instead of raw inner product
+  r_d: 2              # dilation radius for the RD soft target
+  blur_sigma: 1.5
+  gamma: 10.0         # boundary band of the RD weighting
+  eps: 1.0e-3
+
 optimizer:
   max_epoch: 50
   batch_size: 4
