@@ -1,8 +1,17 @@
 # DReAM-SAM
-Repository for source code submission
 
-## Abstract
-The Segment Anything Model (SAM) has demonstrated unprecedented zero-shot segmentation capabilities across general visual domains. However, its effectiveness in Medical Image Segmentation (MIS) remains significantly constrained, particularly when dealing with small, ill-defined shapes, and low-contrast with ambiguous boundaries, due to insufficient modeling of local context and a lack of awareness of surrounding anatomical relationships. In this paper, we propose Dynamic Region-Adaptive Modulated SAM (DReAM-SAM), a novel framework designed to enhance SAM’s spatial adaptability and fidelity for fine-grained MIS. Our framework introduces three key technical pillars: (1) Dynamically Adaptive Modulation: We integrate an agile CNN branch to complement SAM’s encoder, which enforces fine structural details and boundary-sensitive localization via dynamically adaptive feature modulation across regions. (2) Bidirectional Feature Unification: We develop a reciprocal neighborhood attention to facilitate mutual reinforcement between two feature streams. (3) Self-Prompting Mechanism: To eliminate the manual or explicit prompt intervention inherent in SAM’s original design, we devise a self-prompting strategy that autonomously derives spatially semantic prompts from model-inferred target cues. Extensive experiments across diverse medical modalities and datasets demonstrate that DReAM-SAM outperforms state-of-the-art SAM variants and task-specific MIS approaches.
+This repository provides a PyTorch implementation of the following paper:
+> **DReAM-SAM: Dynamic Region-Adaptive Modulated Segment Anything Model for Fully Automatic Medical Image Segmentation**<br>
+> [Kwanseok Oh](https://scholar.google.co.kr/citations?user=EMYHaHUAAAAJ&hl=ko)<sup>1, 2</sup>, Dahye Lee<sup>2</sup>, and [Heung-Il Suk](https://scholar.google.co.kr/citations?user=dl_oZLwAAAAJ&hl=ko)<sup>1</sup><br/>
+> (<sup>1</sup>Department of Artificial Intelligence, Korea University) <br/>
+> (<sup>2</sup>DEEPNOID Inc.) <br/>
+> Published in IEEE TMI: https://doi.org/10.1109/TMI.2026.3752818 <br/>
+> 
+> **Abstract:** *The Segment Anything Model (SAM) has shown strong zero-shot segmentation capabilities across general visual domains. However, its effectiveness in Medical Image Segmentation (MIS) remains constrained by the medical-domain gap, reliance on explicit user prompts, and limited adaptability to small, heterogeneous, or ill-defined targets. In particular, feature adaptation in existing SAM approaches often remains shared across anatomical targets, making it difficult to tailor local representations to target identity, morphology, and surrounding anatomical context. In this paper, we propose **D**ynamic **Re**gion-**A**daptive **M**odulated **SAM** (**DReAM-SAM**), a fully automatic framework that introduces target- and region-adaptive representation learning for fine-grained MIS. Our framework introduces three key technical pillars: 
+(1) Target-Conditioned Dynamic Modulation: We propose an agile CNN (ACNN) that complements SAM's encoder by adapting local feature extraction to target identity and morphology while promoting boundary-sensitive details. (2) Query-Adaptive Feature Interaction: We develop a bidirectional neighborhood attention mechanism to integrate complementary ACNN and SAM features over query-adaptive multi-scale contexts. (3) Target-Aware Self-Prompting: We further devise a self-prompting mechanism that exploits target-existence cues and target-aware representations to automatically generate surrogate prompts. Extensive experiments across six MIS datasets and diverse medical imaging modalities reveal that DReAM-SAM outperforms state-of-the-art SAM variants and task-specific MIS models.*
+
+## Overall Framework
+
 
 
 ## Project Structure
