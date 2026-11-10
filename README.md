@@ -20,6 +20,19 @@ The main contributions are summarized as follows:
 - Extensive experiments across six MIS datasets and diverse imaging modalities demonstrate that DReAM-SAM outperforms state-of-the-art task-specific and SAM-based segmentation approaches, with particularly pronounced gains on small, heterogeneous, and ambiguous targets.
 
 
+
+<img width="2902" height="1671" alt="Image" src="https://github.com/user-attachments/assets/9fa06e14-c7cb-4977-81c6-adda6b788f5c" />
+
+<img width="2892" height="1501" alt="Image" src="https://github.com/user-attachments/assets/c89a60c7-d688-4b6c-9b77-f682c8a57b27" />
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/f83ab7e4-cc93-454d-98bd-ce1dbddc5b1c" /></p>
+
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/f7a45202-ce08-4c74-a90c-d7df54d03715" /></p>
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/039f89ff-0df2-4aa9-b0fe-172a85a6c65d" /></p>
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/f25bf1ce-eb3a-42cb-b697-5f66552b0e14" /></p>
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/4ffa0d0f-7d39-43bb-ac2f-f5d2ecceea80" /></p>
+<p align="center"><img width="65%" src="https://github.com/user-attachments/assets/098458d3-36b3-4b74-b4c3-9e542c5db0e5" /></p>
+
+
 ## Project Structure
 ```none
 DReAM-SAM
