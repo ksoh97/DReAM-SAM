@@ -1,4 +1,4 @@
-# DReAM-SAM
+# DReAM-SAM 
 
 This repository provides a PyTorch implementation of the following paper:
 > **DReAM-SAM: Dynamic Region-Adaptive Modulated Segment Anything Model for Fully Automatic Medical Image Segmentation**<br>
